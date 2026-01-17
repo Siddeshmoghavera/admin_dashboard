@@ -1,75 +1,88 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchUsers, updateUserStatus } from '@/api';
-import type { PaginationParams } from '@/types';
+import type { PaginationParams, User, UsersApiResponse } from '@/types';
 
-// Query keys
+// --------------------
+// Query Keys
+// --------------------
 export const userQueryKeys = {
   all: ['users'] as const,
   list: (params: PaginationParams) => ['users', 'list', params] as const,
 };
 
-/**
- * Hook to fetch users with pagination and filters
- */
+// --------------------
+// Fetch Users Hook
+// (React Query v5 compatible)
+// --------------------
 export const useUsers = (params: PaginationParams) => {
-  return useQuery({
+  return useQuery<UsersApiResponse>({
     queryKey: userQueryKeys.list(params),
     queryFn: () => fetchUsers(params),
-    keepPreviousData: true,
+
+    // ✅ v5 replacement for keepPreviousData
+    placeholderData: (previousData) => previousData,
   });
 };
 
-/**
- * Hook to update user status with Optimistic UI
- */
+// --------------------
+// Update User Status (Optimistic UI)
+// --------------------
 export const useUpdateUserStatus = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({
-      userId,
-      status,
-    }: {
-      userId: string;
-      status: 'active' | 'inactive';
-    }) => updateUserStatus(userId, status),
+  return useMutation<
+    { success: boolean; data: User; message: string },
+    Error,
+    { userId: string; status: 'active' | 'inactive' },
+    { previousData?: unknown }
+  >({
+    mutationFn: ({ userId, status }) =>
+      updateUserStatus(userId, status),
 
     /**
-     * ✅ STEP 6.1 — Optimistic Update
+     * ✅ Optimistic Update
      */
     onMutate: async ({ userId, status }) => {
       await queryClient.cancelQueries({ queryKey: userQueryKeys.all });
 
-      const previousData = queryClient.getQueryData(userQueryKeys.all);
-
-      queryClient.setQueriesData(userQueryKeys.all, (old: any) => {
-        if (!old?.data?.users) return old;
-
-        return {
-          ...old,
-          data: {
-            ...old.data,
-            users: old.data.users.map((u: any) =>
-              u.userId === userId ? { ...u, status } : u
-            ),
-          },
-        };
+      const previousData = queryClient.getQueryData({
+        queryKey: userQueryKeys.all,
       });
+
+      queryClient.setQueriesData(
+        { queryKey: userQueryKeys.all },
+        (old: any) => {
+          if (!old?.data?.users) return old;
+
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              users: old.data.users.map((u: User) =>
+                u.userId === userId ? { ...u, status } : u
+              ),
+            },
+          };
+        }
+      );
 
       return { previousData };
     },
 
     /**
-     * ✅ STEP 6.2 — Rollback on Error
+     * ✅ Rollback on Error
      */
-    onError: (_err, _vars, context) => {
+    onError: (_error, _variables, context) => {
       if (context?.previousData) {
-        queryClient.setQueryData(userQueryKeys.all, context.previousData);
+        queryClient.setQueryData(
+          { queryKey: userQueryKeys.all },
+          context.previousData
+        );
       }
     },
 
     /**
-     * Optional: Revalidate after mutation settles
+     * ✅ Revalidate after mutation
      */
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.all });
@@ -77,9 +90,9 @@ export const useUpdateUserStatus = () => {
   });
 };
 
-/**
- * Hook to manually invalidate users cache
- */
+// --------------------
+// Manual Cache Invalidation
+// --------------------
 export const useInvalidateUsersCache = () => {
   const queryClient = useQueryClient();
 
