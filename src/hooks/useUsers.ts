@@ -19,7 +19,7 @@ export const useUsers = (params: PaginationParams) => {
 };
 
 /**
- * Update user status with Optimistic UI
+ * Update user status with Optimistic UI (React Query v5 SAFE)
  */
 export const useUpdateUserStatus = () => {
   const queryClient = useQueryClient();
@@ -28,62 +28,49 @@ export const useUpdateUserStatus = () => {
     { success: boolean; data: User; message: string },
     Error,
     { userId: string; status: 'active' | 'inactive' },
-    { previousData?: unknown }
+    { previousQueries?: [unknown, UsersApiResponse | undefined][] }
   >({
     mutationFn: ({ userId, status }) =>
       updateUserStatus(userId, status),
 
-    /**
-     * Optimistic update
-     */
     onMutate: async ({ userId, status }) => {
-      // ✅ v5 requires filter object here
+      // Cancel all users queries
       await queryClient.cancelQueries({
         queryKey: userQueryKeys.all,
       });
 
-      // ✅ raw key allowed here
-      const previousData = queryClient.getQueryData(
-        userQueryKeys.all
-      );
+      // Get ALL matching queries safely (v5 way)
+      const previousQueries =
+        queryClient.getQueriesData<UsersApiResponse>({
+          queryKey: userQueryKeys.all,
+        });
 
-      queryClient.setQueriesData(
-        userQueryKeys.all,
-        (old: any) => {
-          if (!old?.data?.users) return old;
+      // Optimistically update each users list
+      previousQueries.forEach(([queryKey, data]) => {
+        if (!data?.data?.users) return;
 
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              users: old.data.users.map((u: User) =>
-                u.userId === userId ? { ...u, status } : u
-              ),
-            },
-          };
-        }
-      );
+        queryClient.setQueryData<UsersApiResponse>(queryKey, {
+          ...data,
+          data: {
+            ...data.data,
+            users: data.data.users.map((u) =>
+              u.userId === userId ? { ...u, status } : u
+            ),
+          },
+        });
+      });
 
-      return { previousData };
+      return { previousQueries };
     },
 
-    /**
-     * Rollback on error
-     */
     onError: (_error, _vars, context) => {
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          userQueryKeys.all,
-          context.previousData
-        );
-      }
+      // Rollback all affected queries
+      context?.previousQueries?.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
     },
 
-    /**
-     * Revalidate
-     */
     onSettled: () => {
-      // ✅ v5 requires filter object here
       queryClient.invalidateQueries({
         queryKey: userQueryKeys.all,
       });
