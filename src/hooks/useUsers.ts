@@ -7,6 +7,9 @@ export const userQueryKeys = {
   list: (params: PaginationParams) => ['users', 'list', params] as const,
 };
 
+/**
+ * Fetch users
+ */
 export const useUsers = (params: PaginationParams) => {
   return useQuery<UsersApiResponse>({
     queryKey: userQueryKeys.list(params),
@@ -15,6 +18,9 @@ export const useUsers = (params: PaginationParams) => {
   });
 };
 
+/**
+ * Update user status with Optimistic UI
+ */
 export const useUpdateUserStatus = () => {
   const queryClient = useQueryClient();
 
@@ -27,11 +33,16 @@ export const useUpdateUserStatus = () => {
     mutationFn: ({ userId, status }) =>
       updateUserStatus(userId, status),
 
+    /**
+     * Optimistic update
+     */
     onMutate: async ({ userId, status }) => {
+      // ✅ v5 requires filter object here
       await queryClient.cancelQueries({
         queryKey: userQueryKeys.all,
       });
 
+      // ✅ raw key allowed here
       const previousData = queryClient.getQueryData(
         userQueryKeys.all
       );
@@ -56,6 +67,9 @@ export const useUpdateUserStatus = () => {
       return { previousData };
     },
 
+    /**
+     * Rollback on error
+     */
     onError: (_error, _vars, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(
@@ -65,7 +79,11 @@ export const useUpdateUserStatus = () => {
       }
     },
 
+    /**
+     * Revalidate
+     */
     onSettled: () => {
+      // ✅ v5 requires filter object here
       queryClient.invalidateQueries({
         queryKey: userQueryKeys.all,
       });
@@ -73,6 +91,9 @@ export const useUpdateUserStatus = () => {
   });
 };
 
+/**
+ * Manual cache invalidation
+ */
 export const useInvalidateUsersCache = () => {
   const queryClient = useQueryClient();
 
