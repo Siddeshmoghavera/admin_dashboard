@@ -1,7 +1,4 @@
-Below is a **clean, professional, submission-ready README.md** tailored **exactly** to your project and what you implemented.
-You can **copy–paste this directly** into `README.md`.
 
----
 
 # 🛠️ Admin Dashboard – Users Management
 
