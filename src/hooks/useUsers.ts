@@ -2,31 +2,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchUsers, updateUserStatus } from '@/api';
 import type { PaginationParams, User, UsersApiResponse } from '@/types';
 
-// --------------------
-// Query Keys
-// --------------------
 export const userQueryKeys = {
   all: ['users'] as const,
   list: (params: PaginationParams) => ['users', 'list', params] as const,
 };
 
-// --------------------
-// Fetch Users Hook
-// (React Query v5 compatible)
-// --------------------
 export const useUsers = (params: PaginationParams) => {
   return useQuery<UsersApiResponse>({
     queryKey: userQueryKeys.list(params),
     queryFn: () => fetchUsers(params),
-
-    // ✅ v5 replacement for keepPreviousData
     placeholderData: (previousData) => previousData,
   });
 };
 
-// --------------------
-// Update User Status (Optimistic UI)
-// --------------------
 export const useUpdateUserStatus = () => {
   const queryClient = useQueryClient();
 
@@ -39,18 +27,17 @@ export const useUpdateUserStatus = () => {
     mutationFn: ({ userId, status }) =>
       updateUserStatus(userId, status),
 
-    /**
-     * ✅ Optimistic Update
-     */
     onMutate: async ({ userId, status }) => {
-      await queryClient.cancelQueries({ queryKey: userQueryKeys.all });
-
-      const previousData = queryClient.getQueryData({
+      await queryClient.cancelQueries({
         queryKey: userQueryKeys.all,
       });
 
+      const previousData = queryClient.getQueryData(
+        userQueryKeys.all
+      );
+
       queryClient.setQueriesData(
-        { queryKey: userQueryKeys.all },
+        userQueryKeys.all,
         (old: any) => {
           if (!old?.data?.users) return old;
 
@@ -69,35 +56,30 @@ export const useUpdateUserStatus = () => {
       return { previousData };
     },
 
-    /**
-     * ✅ Rollback on Error
-     */
-    onError: (_error, _variables, context) => {
+    onError: (_error, _vars, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(
-          { queryKey: userQueryKeys.all },
+          userQueryKeys.all,
           context.previousData
         );
       }
     },
 
-    /**
-     * ✅ Revalidate after mutation
-     */
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: userQueryKeys.all,
+      });
     },
   });
 };
 
-// --------------------
-// Manual Cache Invalidation
-// --------------------
 export const useInvalidateUsersCache = () => {
   const queryClient = useQueryClient();
 
   return {
     invalidateAll: () =>
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.all }),
+      queryClient.invalidateQueries({
+        queryKey: userQueryKeys.all,
+      }),
   };
 };
