@@ -25,7 +25,7 @@ export const UsersPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   /**
-   * ✅ STEP 3.2 — Initialize state FROM URL
+   * ✅ Initialize state FROM URL
    */
   const pageFromUrl = Number(searchParams.get('page') || 1);
   const statusFromUrl =
@@ -42,12 +42,12 @@ export const UsersPage: React.FC = () => {
   });
 
   /**
-   * ✅ STEP 4.2 — Debounced search value
+   * ✅ Debounced search
    */
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   /**
-   * ✅ STEP 4.3 — Use debounced value in API call
+   * ✅ Fetch users
    */
   const { data, isLoading, error } = useUsers({
     page: pagination.pageIndex + 1,
@@ -56,10 +56,16 @@ export const UsersPage: React.FC = () => {
     status: statusFilter,
   });
 
-  // Update user status mutation
-  const { mutate: updateStatus, isPending: isUpdating } = useUpdateUserStatus();
+  /**
+   * ✅ Update user status mutation
+   */
+  const { mutate: updateStatus, isPending: isUpdating } =
+    useUpdateUserStatus();
 
-  const handleToggleStatus = (userId: string, newStatus: 'active' | 'inactive') => {
+  const handleToggleStatus = (
+    userId: string,
+    newStatus: 'active' | 'inactive'
+  ) => {
     updateStatus(
       { userId, status: newStatus },
       {
@@ -67,7 +73,9 @@ export const UsersPage: React.FC = () => {
           enqueueSnackbar(response.message, { variant: 'success' });
         },
         onError: () => {
-          enqueueSnackbar('Failed to update user status', { variant: 'error' });
+          enqueueSnackbar('Failed to update user status', {
+            variant: 'error',
+          });
         },
       }
     );
@@ -83,9 +91,11 @@ export const UsersPage: React.FC = () => {
   };
 
   /**
-   * ✅ STEP 3.4 — Sync URL on Status Change
+   * ✅ Sync URL on Status Change
    */
-  const handleStatusFilterChange = (value: 'all' | 'active' | 'inactive') => {
+  const handleStatusFilterChange = (
+    value: 'all' | 'active' | 'inactive'
+  ) => {
     setStatusFilter(value);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
 
@@ -96,9 +106,11 @@ export const UsersPage: React.FC = () => {
   };
 
   /**
-   * ✅ STEP 3.3 — Sync URL on Pagination Change
+   * ✅ Sync URL on Pagination Change
    */
-  const handlePaginationChange = (newPagination: MRT_PaginationState) => {
+  const handlePaginationChange = (
+    newPagination: MRT_PaginationState
+  ) => {
     setPagination(newPagination);
 
     setSearchParams({
@@ -107,7 +119,9 @@ export const UsersPage: React.FC = () => {
     });
   };
 
-  // Columns with actions
+  /**
+   * Columns with Actions
+   */
   const columnsWithActions: ColumnMetadata[] = [
     ...userColumnMetadata,
     {
@@ -129,6 +143,9 @@ export const UsersPage: React.FC = () => {
     ),
   }));
 
+  /**
+   * Error state
+   */
   if (error) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
