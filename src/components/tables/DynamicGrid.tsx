@@ -5,7 +5,7 @@ import {
   type MRT_ColumnDef,
   type MRT_PaginationState,
 } from 'material-react-table';
-import { Chip, Box } from '@mui/material';
+import { Chip, Box, Skeleton } from '@mui/material';
 import type { ColumnMetadata, User, Group } from '@/types';
 import { formatDate } from '@/utils';
 
@@ -21,10 +21,6 @@ interface DynamicGridProps {
 
 /**
  * Renders cell content based on column type
- *
- * BUG: The 'chiplist' type for groups is not rendering correctly.
- * It should display group names as chips, but something is wrong.
- * TODO: Fix the chiplist renderer to properly display groups.
  */
 const renderCellByType = (
   value: unknown,
@@ -34,7 +30,7 @@ const renderCellByType = (
     case 'string':
       return value as string;
 
-    case 'badge':
+    case 'badge': {
       const status = value as 'active' | 'inactive';
       return (
         <Chip
@@ -44,15 +40,14 @@ const renderCellByType = (
           sx={{ textTransform: 'capitalize' }}
         />
       );
+    }
 
     case 'date':
       return formatDate(value as string, columnMeta.format);
 
-    case 'chiplist':
-      // BUG: This is not rendering groups correctly!
-      // The groups array contains objects with groupName, but we're not accessing it properly.
-      // TODO: Fix this to display group names as chips.
+    case 'chiplist': {
       const groups = value as Group[];
+
       if (!groups || groups.length === 0) {
         return <span style={{ color: '#999' }}>No groups</span>;
       }
@@ -61,33 +56,21 @@ const renderCellByType = (
         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
           {groups.map((group) => (
             <Chip
-              // BUG: Wrong property being used for key and label
-              key={group.toString()}
-              label={group.toString()}
+              key={group.groupId}
+              label={group.groupName}
               size="small"
               variant="outlined"
             />
           ))}
         </Box>
       );
+    }
 
     default:
       return String(value);
   }
 };
 
-/**
- * DynamicGrid Component
- *
- * A metadata-driven data grid using Material React Table.
- * Columns are generated dynamically based on the provided metadata.
- *
- * Features:
- * - Dynamic column generation from metadata
- * - Custom cell renderers for different data types
- * - Server-side pagination
- * - Sorting support
- */
 export const DynamicGrid: React.FC<DynamicGridProps> = ({
   data,
   columns,
@@ -96,6 +79,20 @@ export const DynamicGrid: React.FC<DynamicGridProps> = ({
   pagination,
   onPaginationChange,
 }) => {
+  /**
+   * ✅ STEP 5 — Loading Skeleton
+   * Shown before table render
+   */
+  if (isLoading) {
+    return (
+      <Box p={2}>
+        {[...Array(10)].map((_, i) => (
+          <Skeleton key={i} height={40} sx={{ mb: 1 }} />
+        ))}
+      </Box>
+    );
+  }
+
   // Generate MRT columns from metadata
   const tableColumns = useMemo<MRT_ColumnDef<User>[]>(() => {
     return columns.map((colMeta) => ({
@@ -120,7 +117,6 @@ export const DynamicGrid: React.FC<DynamicGridProps> = ({
     manualPagination: true,
     rowCount: totalCount,
     state: {
-      isLoading,
       pagination,
     },
     onPaginationChange: (updater) => {
@@ -131,14 +127,14 @@ export const DynamicGrid: React.FC<DynamicGridProps> = ({
     muiTableContainerProps: {
       sx: { maxHeight: '600px' },
     },
-    muiTableBodyRowProps: ({ row }) => ({
+    muiTableBodyRowProps: {
       sx: {
         cursor: 'pointer',
         '&:hover': {
           backgroundColor: 'action.hover',
         },
       },
-    }),
+    },
   });
 
   return <MaterialReactTable table={table} />;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -15,82 +15,56 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import { useSnackbar } from 'notistack';
 import { DynamicGrid, UserActions } from '@/components';
-import { useUsers, useUpdateUserStatus } from '@/hooks';
+import { useUsers, useUpdateUserStatus, useDebounce } from '@/hooks';
 import { userColumnMetadata } from '@/utils';
 import type { MRT_PaginationState } from 'material-react-table';
 import type { User, ColumnMetadata } from '@/types';
 
-/**
- * Users Page Component
- *
- * Displays a paginated, filterable list of users.
- *
- * KNOWN BUGS FOR CANDIDATE TO FIX:
- *
- * BUG #1: After changing user status, the table doesn't refresh.
- *         (Located in useUsers hook - cache invalidation issue)
- *
- * BUG #2: The 'Groups' column shows "[object Object]" instead of group names.
- *         (Located in DynamicGrid component - chiplist renderer issue)
- *
- * BUG #3: Page/filter state is not synced with URL params.
- *         When you change page or filter, URL doesn't update.
- *         When you refresh, pagination resets to page 1.
- *         (Located in this file - URL sync issue)
- *
- * INCOMPLETE FEATURES:
- *
- * 1. Search is not debounced - API is called on every keystroke.
- * 2. No loading skeleton - just shows spinner.
- * 3. No error boundary or proper error UI.
- */
 export const UsersPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
 
-  // Local state for filters
+  /**
+   * ✅ STEP 3.2 — Initialize state FROM URL
+   */
+  const pageFromUrl = Number(searchParams.get('page') || 1);
+  const statusFromUrl =
+    (searchParams.get('status') as 'all' | 'active' | 'inactive') || 'all';
+
+  // Local state
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] =
+    useState<'all' | 'active' | 'inactive'>(statusFromUrl);
+
   const [pagination, setPagination] = useState<MRT_PaginationState>({
-    pageIndex: 0,
+    pageIndex: pageFromUrl - 1,
     pageSize: 10,
   });
 
-  // BUG #3: URL params are read but not used properly
-  // This effect runs AFTER initial render, causing the pagination to reset
-  useEffect(() => {
-    const page = searchParams.get('page');
-    const status = searchParams.get('status');
+  /**
+   * ✅ STEP 4.2 — Debounced search value
+   */
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    if (page) {
-      // BUG: This runs after initial data fetch, causing a flicker
-      setPagination((prev) => ({ ...prev, pageIndex: parseInt(page) - 1 }));
-    }
-    if (status) {
-      setStatusFilter(status as 'all' | 'active' | 'inactive');
-    }
-  }, [searchParams]);
-
-  // Fetch users - BUG: Search is not debounced!
-  // TODO: Use the useDebounce hook to debounce the search query
+  /**
+   * ✅ STEP 4.3 — Use debounced value in API call
+   */
   const { data, isLoading, error } = useUsers({
     page: pagination.pageIndex + 1,
     pageSize: pagination.pageSize,
-    query: searchQuery, // BUG: This updates on every keystroke
+    query: debouncedSearchQuery,
     status: statusFilter,
   });
 
   // Update user status mutation
   const { mutate: updateStatus, isPending: isUpdating } = useUpdateUserStatus();
 
-  // Handle status toggle
   const handleToggleStatus = (userId: string, newStatus: 'active' | 'inactive') => {
     updateStatus(
       { userId, status: newStatus },
       {
         onSuccess: (response) => {
           enqueueSnackbar(response.message, { variant: 'success' });
-          // BUG: Table doesn't refresh after this!
         },
         onError: () => {
           enqueueSnackbar('Failed to update user status', { variant: 'error' });
@@ -99,29 +73,41 @@ export const UsersPage: React.FC = () => {
     );
   };
 
-  // Handle search input change - BUG: Not debounced!
+  /**
+   * Search input
+   * Pagination resets immediately, API waits for debounce
+   */
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    // TODO: Implement debouncing to prevent API calls on every keystroke
-    // Reset to first page when searching
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   };
 
-  // Handle status filter change
+  /**
+   * ✅ STEP 3.4 — Sync URL on Status Change
+   */
   const handleStatusFilterChange = (value: 'all' | 'active' | 'inactive') => {
     setStatusFilter(value);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    // BUG: URL is not updated when filter changes
+
+    setSearchParams({
+      page: '1',
+      status: value,
+    });
   };
 
-  // Handle pagination change
+  /**
+   * ✅ STEP 3.3 — Sync URL on Pagination Change
+   */
   const handlePaginationChange = (newPagination: MRT_PaginationState) => {
     setPagination(newPagination);
-    // BUG: URL is not updated when pagination changes
-    // TODO: Update URL search params when pagination changes
+
+    setSearchParams({
+      page: (newPagination.pageIndex + 1).toString(),
+      status: statusFilter,
+    });
   };
 
-  // Add actions column to metadata
+  // Columns with actions
   const columnsWithActions: ColumnMetadata[] = [
     ...userColumnMetadata,
     {
@@ -132,7 +118,6 @@ export const UsersPage: React.FC = () => {
     },
   ];
 
-  // Transform data to include actions renderer
   const usersWithActions = (data?.data?.users || []).map((user: User) => ({
     ...user,
     actions: (
@@ -144,7 +129,6 @@ export const UsersPage: React.FC = () => {
     ),
   }));
 
-  // Error state - TODO: Improve error UI
   if (error) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
@@ -155,7 +139,6 @@ export const UsersPage: React.FC = () => {
 
   return (
     <Box>
-      {/* Page Header */}
       <Typography variant="h4" component="h1" gutterBottom>
         Users
       </Typography>
@@ -163,7 +146,6 @@ export const UsersPage: React.FC = () => {
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          {/* Search Input - BUG: Not debounced! */}
           <TextField
             placeholder="Search by name or email..."
             value={searchQuery}
@@ -179,14 +161,15 @@ export const UsersPage: React.FC = () => {
             }}
           />
 
-          {/* Status Filter */}
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Status</InputLabel>
             <Select
               value={statusFilter}
               label="Status"
               onChange={(e) =>
-                handleStatusFilterChange(e.target.value as 'all' | 'active' | 'inactive')
+                handleStatusFilterChange(
+                  e.target.value as 'all' | 'active' | 'inactive'
+                )
               }
             >
               <MenuItem value="all">All Status</MenuItem>
@@ -195,7 +178,6 @@ export const UsersPage: React.FC = () => {
             </Select>
           </FormControl>
 
-          {/* Results Count */}
           <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
             <Typography variant="body2" color="text.secondary">
               {data?.data?.totalCount || 0} users found

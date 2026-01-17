@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
 import { router } from './routes';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -44,12 +45,17 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+
         <SnackbarProvider
           maxSnack={3}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
-          <RouterProvider router={router} />
+          {/* Error Boundary wraps the Router */}
+          <ErrorBoundary>
+            <RouterProvider router={router} />
+          </ErrorBoundary>
         </SnackbarProvider>
+
       </ThemeProvider>
     </QueryClientProvider>
   );

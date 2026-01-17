@@ -14,13 +14,7 @@ interface UserActionsProps {
  * UserActions Component
  *
  * Renders action buttons for a user row.
- * Currently shows activate/deactivate toggle.
- *
- * TODO FOR CANDIDATE:
- * 1. Implement optimistic UI - update the button state immediately
- *    before the API call completes.
- * 2. Handle error case - revert the optimistic update if API fails.
- * 3. Add a confirmation dialog before deactivating a user (optional).
+ * Shows activate / deactivate toggle.
  */
 export const UserActions: React.FC<UserActionsProps> = ({
   user,
@@ -28,6 +22,16 @@ export const UserActions: React.FC<UserActionsProps> = ({
   isUpdating = false,
 }) => {
   const handleToggle = () => {
+    /**
+     * ✅ STEP 7.1 — Confirmation before deactivation
+     */
+    if (
+      user.status === 'active' &&
+      !window.confirm('Deactivate this user?')
+    ) {
+      return;
+    }
+
     const newStatus = user.status === 'active' ? 'inactive' : 'active';
     onToggleStatus(user.userId, newStatus);
   };
