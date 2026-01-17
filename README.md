@@ -28,7 +28,7 @@ The application displays a paginated list of users with search, filtering, optim
 
 ## 🚀 Live Demo
 
-🔗 **Live URL:** `<https://admin-dashboard-psi-rosy-67.vercel.app/>`
+🔗 **Live URL:** https://admin-dashboard-psi-rosy-67.vercel.app/
 🔗 **GitHub Repo:** `<PASTE GITHUB LINK HERE>`
 
 ---
