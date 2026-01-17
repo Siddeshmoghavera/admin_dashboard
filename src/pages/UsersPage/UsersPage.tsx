@@ -25,7 +25,7 @@ export const UsersPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   /**
-   * ✅ Initialize state FROM URL
+   *Initialize state FROM URL
    */
   const pageFromUrl = Number(searchParams.get('page') || 1);
   const statusFromUrl =
@@ -42,12 +42,12 @@ export const UsersPage: React.FC = () => {
   });
 
   /**
-   * ✅ Debounced search
+   *Debounced search
    */
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   /**
-   * ✅ Fetch users
+   *Fetch users
    */
   const { data, isLoading, error } = useUsers({
     page: pagination.pageIndex + 1,
@@ -57,7 +57,7 @@ export const UsersPage: React.FC = () => {
   });
 
   /**
-   * ✅ Update user status mutation
+   *Update user status mutation
    */
   const { mutate: updateStatus, isPending: isUpdating } =
     useUpdateUserStatus();
@@ -91,7 +91,7 @@ export const UsersPage: React.FC = () => {
   };
 
   /**
-   * ✅ Sync URL on Status Change
+   *Sync URL on Status Change
    */
   const handleStatusFilterChange = (
     value: 'all' | 'active' | 'inactive'
@@ -106,7 +106,7 @@ export const UsersPage: React.FC = () => {
   };
 
   /**
-   * ✅ Sync URL on Pagination Change
+   *Sync URL on Pagination Change
    */
   const handlePaginationChange = (
     newPagination: MRT_PaginationState

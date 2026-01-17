@@ -23,7 +23,7 @@ export const UserActions: React.FC<UserActionsProps> = ({
 }) => {
   const handleToggle = () => {
     /**
-     * ✅ STEP 7.1 — Confirmation before deactivation
+     * STEP 7.1 — Confirmation before deactivation
      */
     if (
       user.status === 'active' &&

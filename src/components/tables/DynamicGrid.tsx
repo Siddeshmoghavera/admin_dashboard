@@ -80,7 +80,7 @@ export const DynamicGrid: React.FC<DynamicGridProps> = ({
   onPaginationChange,
 }) => {
   /**
-   * ✅ STEP 5 — Loading Skeleton
+   * STEP 5 — Loading Skeleton
    * Shown before table render
    */
   if (isLoading) {
